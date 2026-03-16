@@ -148,6 +148,24 @@ class TestMarkdown:
         result = parser.parse(SIMPLE_HTML, "https://example.com")
         assert len(result.markdown) > 0
 
+    def test_br_mixed_text_preserved(self, parser):
+        """Workaround for markdownify #244/#58: mixed <br> and <br /> must not lose text."""
+        html = '<html><body><article><p>First line content for extraction threshold. ' \
+               'Hello<br>cruel<br />world</p></article></body></html>'
+        result = parser.parse(html, "https://example.com")
+        assert "Hello" in result.text
+        assert "cruel" in result.text
+        assert "world" in result.text
+
+    def test_br_mixed_korean_preserved(self, parser):
+        """Korean text after mixed <br> tags must not be lost."""
+        html = '<html><body><article><p>충분한 길이의 콘텐츠입니다. ' \
+               '안녕<br>하세요<br />반갑습니다</p></article></body></html>'
+        result = parser.parse(html, "https://example.com")
+        assert "안녕" in result.text
+        assert "하세요" in result.text
+        assert "반갑습니다" in result.text
+
 
 # --- Language Detection ---
 

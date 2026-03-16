@@ -1,6 +1,6 @@
 [project]
 name = "markgrab"
-version = "0.1.0"
+version = "0.1.1"
 description = "Universal web content extraction — URL to LLM-ready markdown"
 requires-python = ">=3.12"
 license = "MIT"
@@ -11,22 +11,22 @@ keywords = ["web-scraping", "content-extraction", "markdown", "llm", "rag"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Text Processing :: Markup :: Markdown",
     "Typing :: Typed",
 ]
 
-[project.urls]
-Homepage = "https://github.com/QuartzUnit/markgrab"
-Repository = "https://github.com/QuartzUnit/markgrab"
-Issues = "https://github.com/QuartzUnit/markgrab/issues"
 dependencies = [
     "httpx>=0.28",
     "beautifulsoup4>=4.13",
     "markdownify>=0.14",
 ]
+
+[project.urls]
+Homepage = "https://github.com/QuartzUnit/markgrab"
+Repository = "https://github.com/QuartzUnit/markgrab"
+Issues = "https://github.com/QuartzUnit/markgrab/issues"
 
 [project.optional-dependencies]
 browser = ["playwright>=1.49"]

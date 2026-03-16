@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup, Tag
-from markdownify import markdownify as md_convert
+from markdownify import MarkdownConverter
 
 from markgrab.filter.density import filter_low_density
 from markgrab.filter.noise import clean_soup
@@ -17,6 +17,29 @@ logger = logging.getLogger(__name__)
 
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
 _MULTI_SPACE_RE = re.compile(r" {2,}")
+
+
+class _BrFixedConverter(MarkdownConverter):
+    """Workaround for markdownify #244 / #58: <br> text loss.
+
+    Python's html.parser treats mixed <br> and <br /> as an opening tag,
+    swallowing subsequent text as children.  The upstream convert_br()
+    discards the ``text`` parameter, so any swallowed content is lost.
+    This override preserves it.
+    """
+
+    def convert_br(self, el, text, parent_tags):
+        if '_inline' in parent_tags:
+            return ' ' + text if text else ' '
+        if self.options['newline_style'].lower() == 'backslash':
+            newline = '\\\n'
+        else:
+            newline = '  \n'
+        return newline + text if text else newline
+
+
+def _md_convert(html: str, **kwargs) -> str:
+    return _BrFixedConverter(**kwargs).convert(html)
 
 
 class HtmlParser(Parser):
@@ -110,7 +133,7 @@ class HtmlParser(Parser):
         return body
 
     def _to_markdown(self, content: Tag | BeautifulSoup) -> str:
-        md = md_convert(str(content), heading_style="ATX", bullets="-")
+        md = _md_convert(str(content), heading_style="ATX", bullets="-")
         return _MULTI_NEWLINE_RE.sub("\n\n", md).strip()
 
     def _to_text(self, content: Tag | BeautifulSoup) -> str:
