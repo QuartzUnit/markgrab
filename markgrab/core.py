@@ -51,6 +51,7 @@ async def _fetch_with_fallback(
     timeout: float = 30.0,
     proxy: str | None = None,
     stealth: bool = False,
+    locale: str | None = None,
 ):
     """Fetch via HTTP, fallback to browser on error."""
     http_engine = engine or HttpEngine(proxy=proxy)
@@ -59,7 +60,7 @@ async def _fetch_with_fallback(
     except Exception as exc:
         if _BROWSER_AVAILABLE:
             logger.info("HTTP failed for %s (%s), falling back to browser", url, type(exc).__name__)
-            return await BrowserEngine(proxy=proxy, stealth=stealth).fetch(url, timeout=timeout)
+            return await BrowserEngine(proxy=proxy, stealth=stealth, locale=locale).fetch(url, timeout=timeout)
         raise
 
 
@@ -137,6 +138,8 @@ async def extract(
     stealth: bool = False,
     timeout: float = 30.0,
     proxy: str | None = None,
+    locale: str | None = None,
+    browser_fallback: bool = True,
 ) -> ExtractResult:
     """Extract content from URL and return ExtractResult.
 
@@ -148,6 +151,9 @@ async def extract(
         stealth: Apply anti-bot stealth scripts when using browser (default: False).
         timeout: Request timeout in seconds.
         proxy: Proxy URL (e.g., "http://proxy:8080", "socks5://proxy:1080").
+        locale: Browser locale (default: auto-detect from URL TLD, e.g. .kr → ko-KR).
+        browser_fallback: Auto-fallback to browser on HTTP error or thin content (default: True).
+            Set False for HTTP-only extraction (caller manages browser separately).
     """
     url_type = _detect_type_from_url(url)
 
@@ -163,10 +169,14 @@ async def extract(
     if use_browser:
         if not _BROWSER_AVAILABLE:
             raise ImportError("Playwright not installed. Run: pip install 'markgrab[browser]'")
-        fetch_result = await (engine or BrowserEngine(proxy=proxy, stealth=stealth)).fetch(url, timeout=timeout)
+        fetch_result = await (engine or BrowserEngine(proxy=proxy, stealth=stealth, locale=locale)).fetch(
+            url, timeout=timeout
+        )
     else:
-        if _BROWSER_AVAILABLE:
-            fetch_result = await _fetch_with_fallback(url, engine=engine, timeout=timeout, proxy=proxy, stealth=stealth)
+        if browser_fallback and _BROWSER_AVAILABLE:
+            fetch_result = await _fetch_with_fallback(
+                url, engine=engine, timeout=timeout, proxy=proxy, stealth=stealth, locale=locale
+            )
         else:
             fetch_result = await (engine or HttpEngine(proxy=proxy)).fetch(url, timeout=timeout)
 
@@ -183,10 +193,12 @@ async def extract(
     result = parser.parse(fetch_result.html, url=fetch_result.final_url)
 
     # Auto-fallback: thin content likely means SPA/JS-only page
-    if not use_browser and _BROWSER_AVAILABLE and result.word_count < _MIN_WORD_COUNT:
+    if not use_browser and browser_fallback and _BROWSER_AVAILABLE and result.word_count < _MIN_WORD_COUNT:
         logger.info("Thin content (%d words) for %s, retrying with browser", result.word_count, url)
         try:
-            browser_result = await BrowserEngine(proxy=proxy, stealth=stealth).fetch(url, timeout=timeout)
+            browser_result = await BrowserEngine(proxy=proxy, stealth=stealth, locale=locale).fetch(
+                url, timeout=timeout
+            )
             browser_parsed = parser.parse(browser_result.html, url=browser_result.final_url)
             if browser_parsed.word_count > result.word_count:
                 result = browser_parsed

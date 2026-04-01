@@ -116,14 +116,46 @@ class HtmlParser(Parser):
 
         return meta
 
+    # CSS selectors for content detection — ordered specific → generic.
+    # Tried when semantic elements are missing or wrap the entire page.
+    _CONTENT_SELECTORS = (
+        # ID-based (most specific)
+        "#contentBody", "#powerbbsContent", "#article-body",
+        "#mArticle", "#postContent", "#post-content",
+        # Class-based (common patterns)
+        ".view-content", ".post-content", ".article-content",
+        ".content-wrap", ".entry-content", ".article-body",
+        ".post-body", ".board-content", ".detail-content",
+        ".story-body", ".article__body", ".post__content",
+    )
+
     def _find_content(self, soup: BeautifulSoup) -> Tag | BeautifulSoup:
-        """Find main content area: article > main > [role=main] > body."""
+        """Find main content area with prioritized detection.
+
+        Priority: semantic element (if focused) > CSS class/id > semantic element (broad) > body.
+        """
+        # 1. Try semantic elements
+        semantic_hit = None
         for selector in ("article", "main", "[role='main']"):
             found = soup.select_one(selector)
             if found and len(found.get_text(strip=True)) > 100:
-                return found
+                # Check for a more specific content area inside
+                inner = self._find_content_by_class(found)
+                if inner:
+                    return inner
+                semantic_hit = found
+                break
 
-        # Body fallback — remove page-level noise
+        # 2. Try CSS class/id selectors on full page
+        by_class = self._find_content_by_class(soup)
+        if by_class:
+            return by_class
+
+        # 3. Return the semantic hit if we had one (even if broad)
+        if semantic_hit is not None:
+            return semantic_hit
+
+        # 4. Body fallback — remove page-level noise
         body = soup.find("body") or soup
         for tag in body.find_all(["nav", "aside"], recursive=False):
             tag.decompose()
@@ -131,6 +163,14 @@ class HtmlParser(Parser):
             tag.decompose()
 
         return body
+
+    def _find_content_by_class(self, root: Tag | BeautifulSoup) -> Tag | None:
+        """Find content area using common CSS class/id selectors."""
+        for sel in self._CONTENT_SELECTORS:
+            el = root.select_one(sel)
+            if el and len(el.get_text(strip=True)) > 100:
+                return el
+        return None
 
     def _to_markdown(self, content: Tag | BeautifulSoup) -> str:
         md = _md_convert(str(content), heading_style="ATX", bullets="-")

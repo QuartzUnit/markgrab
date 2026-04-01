@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ArkNill/markgrab",
   "title": "MarkGrab",
-  "description": "Universal web content extraction — convert any URL to clean, LLM-ready markdown. Supports HTML, YouTube transcripts, PDF, and DOCX with auto-fallback and content density filtering.",
+  "description": "Universal web content extraction — any URL to LLM-ready markdown. HTML, YouTube, PDF, DOCX.",
   "repository": {
     "url": "https://github.com/QuartzUnit/markgrab",
     "source": "github"
@@ -15,9 +15,6 @@
       "version": "0.1.2",
       "transport": {
         "type": "stdio"
-      },
-      "runtimeHint": {
-        "command": "markgrab-mcp"
       }
     }
   ]
